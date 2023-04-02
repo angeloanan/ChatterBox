@@ -1,19 +1,33 @@
+pub mod db;
 pub mod routes;
 
-use axum::{routing::get, Router};
+use std::sync::Arc;
+
+use axum::{routing::get, Extension, Router};
 use dotenvy::dotenv;
+use sqlx::{Pool, Sqlite};
+use tokio::sync::broadcast::Sender;
+
+pub struct AppState {
+    db: Pool<Sqlite>,
+    chat_announcer: Sender<String>,
+}
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
 
+    let db = db::init_db().await;
+    db::assert_table(&db).await;
+
     let (chat_announcer, _guard) = tokio::sync::broadcast::channel::<String>(1);
 
+    let shared_state = Arc::new(AppState { db, chat_announcer });
+
     // build our application with a single route
-    let app = Router::new().route(
-        "/ws",
-        get(move |ws| routes::ws::handler(ws, chat_announcer)),
-    );
+    let app = Router::new()
+        .route("/ws", get(routes::ws::handler))
+        .layer(Extension(shared_state));
 
     println!("Listening on http://0.0.0.0:4000");
     axum::Server::bind(&"0.0.0.0:4000".parse().unwrap())

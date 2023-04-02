@@ -1,29 +1,34 @@
+use std::sync::Arc;
+
 use axum::{
     extract::{
         ws::{Message, WebSocket},
         WebSocketUpgrade,
     },
     response::Response,
+    Extension,
 };
 use futures::{
     prelude::*,
     stream::{SplitSink, SplitStream},
 };
+use sqlx::{Pool, Sqlite};
 use tokio::sync::broadcast;
 
-pub async fn handler(
-    ws: WebSocketUpgrade,
-    sender: tokio::sync::broadcast::Sender<String>,
-) -> Response {
+use crate::db;
+use crate::AppState;
+
+pub async fn handler(Extension(state): Extension<Arc<AppState>>, ws: WebSocketUpgrade) -> Response {
     println!("Websocket connection established");
-    ws.on_upgrade(move |socket| handle_socket(socket, sender))
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(socket: WebSocket, tx: broadcast::Sender<String>) {
+async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (sender, receiver) = socket.split();
+    let tx = state.chat_announcer.clone();
 
     let mut send_task = tokio::spawn(write(sender, tx.subscribe()));
-    let mut recv_task = tokio::spawn(read(receiver, tx));
+    let mut recv_task = tokio::spawn(read(receiver, state.db.clone(), tx));
 
     tokio::select! {
         _ = (&mut send_task) => recv_task.abort(),
@@ -31,7 +36,11 @@ async fn handle_socket(socket: WebSocket, tx: broadcast::Sender<String>) {
     };
 }
 
-async fn read(mut ws_receiver: SplitStream<WebSocket>, tx: broadcast::Sender<String>) {
+async fn read(
+    mut ws_receiver: SplitStream<WebSocket>,
+    pool: Pool<Sqlite>,
+    tx: broadcast::Sender<String>,
+) {
     // Prints all messages from the client
     while let Some(msg) = ws_receiver.next().await {
         let message = if let Ok(msg) = msg {
@@ -40,7 +49,13 @@ async fn read(mut ws_receiver: SplitStream<WebSocket>, tx: broadcast::Sender<Str
             println!("Error receiving message. Did client got disconnected?");
             return;
         };
-        // TODO: idk why but client disconnected also sends an empty message here
+        // FIXME: idk why but client disconnected also sends an empty message here
+
+        // Current workaround store non-empty message to DB
+        // TODO: Replace `Someone` with an actual username
+        if !message.to_text().unwrap().is_empty() {
+            db::add_message(&pool, "Someone", message.to_text().unwrap()).await;
+        }
 
         tx.send(message.to_text().unwrap().to_owned()).unwrap();
     }

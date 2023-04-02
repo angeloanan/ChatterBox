@@ -6,8 +6,8 @@
 * [X] Broadcast sent message to everyone
   * [ ] BUG: A message is sent when someone left
 * [ ] Integrate a standardized broadcast format for message: Username, Message, Timestamp
-* [ ] Store message to database
-  * [ ] Initialize database
+* [X] Store message to database
+  * [X] Initialize database
   * [ ] Periodic clean up old messages (older than 1 week)
 * [ ] Send message history on ws connection
 * [ ] Able to delete message for moderation purposes
