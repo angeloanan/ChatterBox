@@ -27,7 +27,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (sender, receiver) = socket.split();
     let tx = state.chat_announcer.clone();
 
-    let mut send_task = tokio::spawn(write(sender, tx.subscribe()));
+    let mut send_task = tokio::spawn(write(sender, state.clone()));
     let mut recv_task = tokio::spawn(read(receiver, state.db.clone(), tx));
 
     tokio::select! {
@@ -49,22 +49,51 @@ async fn read(
             println!("Error receiving message. Did client got disconnected?");
             return;
         };
+
         // FIXME: idk why but client disconnected also sends an empty message here
 
-        // Current workaround store non-empty message to DB
         // TODO: Replace `Someone` with an actual username
-        if !message.to_text().unwrap().is_empty() {
-            db::add_message(&pool, "Someone", message.to_text().unwrap()).await;
-        }
+        let username = "Someone";
+        let text_message = message.to_text().unwrap();
+        let time = time::OffsetDateTime::now_utc().unix_timestamp();
 
-        tx.send(message.to_text().unwrap().to_owned()).unwrap();
+        // Announce to broadcast channel
+        tx.send(format!("{} {}: {}", time, username, text_message))
+            .unwrap();
+
+        // Current workaround store non-empty message to DB
+        if !message.to_text().unwrap().is_empty() {
+            db::add_message(&pool, username, message.to_text().unwrap(), time).await;
+        }
     }
 }
 
 // WS Message sender to browser client
-async fn write(mut ws_sender: SplitSink<WebSocket, Message>, mut tx: broadcast::Receiver<String>) {
+async fn write(mut ws_sender: SplitSink<WebSocket, Message>, state: Arc<AppState>) {
+    let db = state.db.clone();
+    let tx = state.chat_announcer.clone();
+
+    let msg = Message::Text(format!("Your username is: {}", username));
+
+    // Fetch old message and send them to client
+    let old_messages = db::fetch_past_messages(&db).await;
+    for message in old_messages {
+        let msg = Message::Text(format!(
+            "{} {}: {}",
+            message.created_at, message.username, message.message
+        ));
+        let sent_msg = ws_sender.send(msg).await;
+
+        // Handle error
+        if let Err(e) = sent_msg {
+            // Don't print error message if client got disconnected normally
+            println!("Error sending old message, did client got disconnected?: {e}",);
+            break;
+        }
+    }
+
     // Loop over new chat messages and send them to ws_sender
-    while let Ok(message) = tx.recv().await {
+    while let Ok(message) = tx.subscribe().recv().await {
         let msg = Message::Text(message);
         let sent_msg = ws_sender.send(msg).await;
 
