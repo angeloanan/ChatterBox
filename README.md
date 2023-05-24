@@ -4,14 +4,14 @@
 
 * [X] Establish a WS connection
 * [X] Broadcast sent message to everyone
-  * [ ] BUG: A message is sent when someone left
+  * [X] BUG: A message is sent when someone left
 * [X] Integrate a standardized broadcast format for message: `TIME USERNAME: MESSAGE`
 * [X] Store message to database
   * [X] Initialize database
   * [X] Periodic clean up old messages (older than 1 week)
 * [X] Send message history on ws connection
 * [ ] Able to delete message for moderation purposes
-* [ ] Assign default username
+* [X] Assign default username
   * [ ] Store username per IP
     * [X] DB Schema & fns
     * [ ] Convert IP to Hex

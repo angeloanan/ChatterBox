@@ -1,0 +1,43 @@
+{
+  "db": "SQLite",
+  "115082c33bcb4a0606b21a14c51d9c1110379dffba8d302f39793126f9b28a1b": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "\n        INSERT INTO\n            messages (username, message, created_at)\n        VALUES\n            (?, ?, ?)\n        "
+  },
+  "6b0e3d2520b9743c9245d140c140d0f6151bb5f5a3357e522fdfd3dc1150b6e0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "\n        CREATE TABLE IF NOT EXISTS\n            usernames (\n                ip INTEGER PRIMARY KEY NOT NULL,\n                username TEXT NOT NULL\n            )\n        "
+  },
+  "84528779aa8936d92660d85f8fbb0b858c5fd0bb27154bc096b840a03cd8d861": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "\n        DELETE FROM messages\n        WHERE\n            created_at < DATETIME('now', '-7 days')\n        "
+  },
+  "c4a3fb88b6fd6d9e4bb7d120ab18eb3437b3be817825fb5b6fb8394760e4e581": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "\n        CREATE TABLE IF NOT EXISTS\n            messages (\n                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\n                username TEXT NOT NULL,\n                message TEXT NOT NULL,\n                created_at DATETIME NOT NULL\n            )\n        "
+  }
+}

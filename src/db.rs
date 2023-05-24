@@ -116,37 +116,37 @@ pub async fn cleanup_message(connection: &Pool<Sqlite>) {
     .expect("Unable to clean up database");
 }
 
-pub async fn fetch_username(connection: &Pool<Sqlite>, ip: i64) {
-    query_as!(
-        Username,
-        r#"
-        SELECT
-            *
-        FROM
-            usernames
-        WHERE
-            ip = ?
-        "#,
-        ip
-    )
-    .fetch_one(connection)
-    .await
-    .expect("Unable to fetch username")
-}
-
-pub async fn store_username(connection: &Pool<Sqlite>, ip: i64, username: &str) {
-    query_as!(
-        Username,
-        r#"
-        INSERT INTO
-            usernames (ip, username)
-        VALUES
-            (?, ?)
-        "#,
-        ip,
-        username
-    )
-    .execute(connection)
-    .await
-    .expect("Unable to store username");
-}
+// pub async fn fetch_username(connection: &Pool<Sqlite>, ip: i64) {
+//     query_as!(
+//         Username,
+//         r#"
+//         SELECT
+//             *
+//         FROM
+//             usernames
+//         WHERE
+//             ip = ?
+//         "#,
+//         ip
+//     )
+//     .fetch_one(connection)
+//     .await
+//     .expect("Unable to fetch username")
+// }
+//
+// pub async fn store_username(connection: &Pool<Sqlite>, ip: i64, username: &str) {
+//     query_as!(
+//         Username,
+//         r#"
+//         INSERT INTO
+//             usernames (ip, username)
+//         VALUES
+//             (?, ?)
+//         "#,
+//         ip,
+//         username
+//     )
+//     .execute(connection)
+//     .await
+//     .expect("Unable to store username");
+// }

@@ -1,10 +1,11 @@
 pub mod db;
 pub mod routes;
+pub mod names;
 
-use std::sync::Arc;
+use std::{sync::Arc, net::SocketAddr};
 
-use axum::{routing::get, Extension, Router};
-use axum_client_ip::{ SecureClientIpSource};
+use axum::{routing::get, Extension, Router, extract::ConnectInfo};
+use axum_client_ip::SecureClientIpSource;
 use dotenvy::dotenv;
 use sqlx::{Pool, Sqlite};
 use tokio::sync::broadcast::Sender;
@@ -32,7 +33,10 @@ async fn main() {
         }
     });
 
-    let shared_state = Arc::new(AppState { db, chat_announcer });
+    let shared_state = Arc::new(AppState {
+        db,
+        chat_announcer,
+    });
 
     // build our application with a single route
     let app = Router::new()
@@ -42,7 +46,7 @@ async fn main() {
 
     println!("Listening on http://0.0.0.0:4000");
     axum::Server::bind(&"0.0.0.0:4000".parse().unwrap())
-        .serve(app.into_make_service())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
 }
