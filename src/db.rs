@@ -18,6 +18,7 @@ pub struct Username {
     pub username: String,
 }
 
+#[tracing::instrument]
 pub async fn init_db() -> Pool<Sqlite> {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -37,6 +38,7 @@ pub async fn init_db() -> Pool<Sqlite> {
         .expect("Unable to connect to database")
 }
 
+#[tracing::instrument]
 pub async fn assert_table(connection: &Pool<Sqlite>) {
     query!(
         r#"
@@ -83,7 +85,9 @@ pub async fn fetch_past_messages(connection: &Pool<Sqlite>) -> Vec<Message> {
     .expect("Unable to fetch past messages")
 }
 
-pub async fn add_message(connection: &Pool<Sqlite>, username: &str, message: &str, time: i64) {
+pub async fn add_message(connection: &Pool<Sqlite>, username: &str, message: &str, time: &i64) {
+    let nanotime = time * 1_000;
+
     query_as!(
         Message,
         r#"
@@ -94,7 +98,7 @@ pub async fn add_message(connection: &Pool<Sqlite>, username: &str, message: &st
         "#,
         username,
         message,
-        time
+        nanotime
     )
     .execute(connection)
     .await

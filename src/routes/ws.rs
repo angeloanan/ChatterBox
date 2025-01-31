@@ -15,10 +15,12 @@ use futures::{
 };
 use sqlx::{Pool, Sqlite};
 use tokio::sync::broadcast;
+use tracing::debug;
 
 use crate::AppState;
 use crate::{db, names::generate_name};
 
+#[tracing::instrument]
 pub async fn handler(
     Extension(state): Extension<Arc<AppState>>,
     ws: WebSocketUpgrade,
@@ -26,10 +28,11 @@ pub async fn handler(
 ) -> Response {
     let username = generate_name();
 
-    println!("> New connection {} ({})", username, ip);
+    debug!("New connection {} ({})", username, ip);
     ws.on_upgrade(move |socket| handle_socket(socket, state, username))
 }
 
+#[tracing::instrument]
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>, username: String) {
     let (sender, receiver) = socket.split();
     let tx = state.chat_announcer.clone();
@@ -45,6 +48,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>, username: String
 
 // Browser client to WS message receiver
 // C -> S
+#[tracing::instrument]
 async fn read(
     mut ws_receiver: SplitStream<WebSocket>,
     pool: Pool<Sqlite>,
@@ -56,7 +60,7 @@ async fn read(
         let message = if let Ok(msg) = msg {
             msg
         } else {
-            println!("> [{username}] Error receiving message - Did client disconnect mid-send?");
+            debug!("> [{username}] Error receiving message - Did client disconnect mid-send?");
             return;
         };
 
@@ -66,16 +70,16 @@ async fn read(
                 let message = format!("{} {}: {}", time, username, text);
 
                 // Debug print bcs why not
-                println!("{message}");
+                debug!("{message}");
 
                 // Announce to broadcast channel
                 tx.send(message).unwrap();
 
                 // Add message to database
-                db::add_message(&pool, &username, &text, time).await;
+                db::add_message(&pool, &username, &text, &time).await;
             }
             Message::Close(..) => {
-                println!("> ({username}) disconnected");
+                debug!("> [{username}] disconnected");
                 break;
             }
             _ => (),
@@ -85,6 +89,7 @@ async fn read(
 
 // WS Message sender to browser client
 // S -> C
+#[tracing::instrument]
 async fn write(
     mut ws_sender: SplitSink<WebSocket, Message>,
     state: Arc<AppState>,
